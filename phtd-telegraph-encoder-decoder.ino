@@ -26,7 +26,7 @@ void setup() {
     while (true);
   }
 
-  // attempt to connect to WiFi network:
+  // Attempt to connect to WiFi network:
   while ( status != WL_CONNECTED) {
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(ssid);
@@ -52,7 +52,7 @@ void createSentence(String stringToConvert) {
   }
 }
 
-// this method makes a HTTP connection to the server:
+// this method makes a get request to the REST api.
 void httpRequest() {
   // close any connection before send a new request.
   // This will free the socket on the WiFi shield
@@ -78,6 +78,7 @@ void httpRequest() {
   }
 }
 
+// Checks the wifi status.
 void printWiFiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print("SSID: ");
@@ -95,6 +96,7 @@ void printWiFiStatus() {
   Serial.println(" dBm");
 }
 
+// Extracts JSON from response.
 String extractJSON(String readString) {
   String jsonPart;
   // Extracts JSON from response
@@ -107,6 +109,7 @@ String extractJSON(String readString) {
   return jsonPart;
 }
 
+// Returns the value for a particular option.
 const char *returnOptionsProp(JsonArray& options, const char *prop) {
   const char *value = "";
   for (auto option : options) {
@@ -118,7 +121,7 @@ const char *returnOptionsProp(JsonArray& options, const char *prop) {
   return value;
 }
 
-// Runs loop every ten seconds to output sentence in morse code
+// Runs loop every ten seconds to output sentence in morse code.
 void loop() {
   String readString, jsonPart;
   while (client.available()) {
@@ -127,16 +130,18 @@ void loop() {
   }
 
   DynamicJsonBuffer jsonBuffer;
-
   jsonPart = extractJSON(readString);
-
-  // Serial.print(jsonPart);
-
+  
   JsonObject& jsonObj = jsonBuffer.parseObject(jsonPart);
   JsonArray& controls = jsonObj["controls"];
-  // JsonArray& messages = jsonObj["messages"];
+  //JsonArray& messages = jsonObj["messages"];
 
-  Serial.print(returnOptionsProp(controls, (char *)"messagesDelay"));
+  // Sets the delay time.
+  unsigned long int delayValue = strtoul(returnOptionsProp(controls, (char *)"messagesDelay"), NULL, 0);
+
+  Serial.print(delayValue);
+
+  //Serial.print(returnOptionsProp(controls, (char *)"messagesDelay"));
 
   // Test if parsing succeeds.
   //  if (!jsonObj.success()) {
@@ -153,7 +158,7 @@ void loop() {
     httpRequest();
   }
 
-  //createSentence("Welcome to the Port Hope Train Depot!");
-  //delay(10000);
+  createSentence("Welcome to the Port Hope Train Depot!");
+  delay(delayValue);
 
 }
