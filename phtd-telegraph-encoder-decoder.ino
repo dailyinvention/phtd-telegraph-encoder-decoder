@@ -107,6 +107,17 @@ String extractJSON(String readString) {
   return jsonPart;
 }
 
+const char *returnOptionsProp(JsonArray& options, const char *prop) {
+  const char *value = "";
+  for (auto option : options) {
+    const char *name = option["name"];
+    if (strcmp(name,prop) == 0) {
+      value = option["value"];
+    }
+  }
+  return value;
+}
+
 // Runs loop every ten seconds to output sentence in morse code
 void loop() {
   String readString, jsonPart;
@@ -115,8 +126,26 @@ void loop() {
     readString += c;
   }
 
+  DynamicJsonBuffer jsonBuffer;
+
   jsonPart = extractJSON(readString);
-  Serial.print(jsonPart);
+
+  // Serial.print(jsonPart);
+
+  JsonObject& jsonObj = jsonBuffer.parseObject(jsonPart);
+  JsonArray& controls = jsonObj["controls"];
+  // JsonArray& messages = jsonObj["messages"];
+
+  Serial.print(returnOptionsProp(controls, (char *)"messagesDelay"));
+
+  // Test if parsing succeeds.
+  //  if (!jsonObj.success()) {
+  //    Serial.println("parseObject() failed");
+  //    return;
+  //  }
+
+  //  long controls = jsonObj["controls"].as<long>();
+  //  Serial.print(controls);
 
   // if ten seconds have passed since your last connection,
   // then connect again and send data:
@@ -124,7 +153,7 @@ void loop() {
     httpRequest();
   }
 
-  createSentence("Welcome to the Port Hope Train Depot!");
-  delay(10000);
+  //createSentence("Welcome to the Port Hope Train Depot!");
+  //delay(10000);
 
 }
