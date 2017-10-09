@@ -14,6 +14,9 @@ WiFiClient client;
 IPAddress server(192, 168, 1, 121);
 
 unsigned long lastConnectionTime = 0;
+unsigned int messageCount = 0;
+unsigned long int delayValue;
+bool isLoaded = false;
 const unsigned long postingInterval = 10L * 1000L;
 
 // Initiate the Morse Code Library
@@ -36,7 +39,6 @@ void setup() {
     // wait 10 seconds for connection:
     delay(10000);
   }
-
   printWiFiStatus();
 }
 
@@ -68,7 +70,6 @@ void httpRequest() {
     client.println("Content-Type: application/json");
     client.println("Connection: close");
     client.println();
-
     // note the time that the connection was made:
     lastConnectionTime = millis();
   }
@@ -114,51 +115,63 @@ const char *returnOptionsProp(JsonArray& options, const char *prop) {
   const char *value = "";
   for (auto option : options) {
     const char *name = option["name"];
-    if (strcmp(name,prop) == 0) {
+    if (strcmp(name, prop) == 0) {
       value = option["value"];
     }
   }
   return value;
 }
 
+// Returns array of messages from JSON.
+const char **returnMessages(JsonArray& messages) {
+  const char **finalMessages = new const char *;
+  int order = 0;
+  for (auto message : messages) {
+    order = message["order"].as<int>();
+    const char *messageText = message["message"];
+    finalMessages[order - 1] = messageText;
+  }
+  return finalMessages;
+}
+
 // Runs loop every ten seconds to output sentence in morse code.
 void loop() {
   String readString, jsonPart;
+
   while (client.available()) {
     char c = client.read();
     readString += c;
+    isLoaded = true;
   }
 
-  DynamicJsonBuffer jsonBuffer;
-  jsonPart = extractJSON(readString);
-  
-  JsonObject& jsonObj = jsonBuffer.parseObject(jsonPart);
-  JsonArray& controls = jsonObj["controls"];
-  //JsonArray& messages = jsonObj["messages"];
+  if (isLoaded == true) {
 
-  // Sets the delay time.
-  unsigned long int delayValue = strtoul(returnOptionsProp(controls, (char *)"messagesDelay"), NULL, 0);
+    DynamicJsonBuffer jsonBuffer;
+    jsonPart = extractJSON(readString);
 
-  Serial.print(delayValue);
+    JsonObject& jsonObj = jsonBuffer.parseObject(jsonPart);
+    JsonArray& controls = jsonObj["controls"];
+    JsonArray& messages = jsonObj["messages"];
 
-  //Serial.print(returnOptionsProp(controls, (char *)"messagesDelay"));
+    // Sets the delay time.
+    delayValue = strtoul(returnOptionsProp(controls, (char *)"messagesDelay"), NULL, 0);
 
-  // Test if parsing succeeds.
-  //  if (!jsonObj.success()) {
-  //    Serial.println("parseObject() failed");
-  //    return;
-  //  }
+    Serial.print(messageCount);
+    const char **allMessages = returnMessages(messages);
 
-  //  long controls = jsonObj["controls"].as<long>();
-  //  Serial.print(controls);
+    createSentence(allMessages[messageCount]);
+    delay(delayValue);
 
-  // if ten seconds have passed since your last connection,
-  // then connect again and send data:
+    if (messageCount < sizeof(allMessages)) {
+      messageCount++;
+      //isLoaded = false;
+    } else {
+      messageCount = 0;
+      //isLoaded = false;
+    }
+  }
+
   if (millis() - lastConnectionTime > postingInterval) {
     httpRequest();
   }
-
-  createSentence("Welcome to the Port Hope Train Depot!");
-  delay(delayValue);
-
 }
