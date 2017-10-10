@@ -3,7 +3,9 @@
 #include <SPI.h>
 #include <Lewis.h>
 
+// Wifi SSID
 char ssid[] = "S-Link1";
+// Wifi Password
 char pass[] = "Wolfgang04";
 
 int status = WL_IDLE_STATUS;
@@ -16,6 +18,7 @@ IPAddress server(192, 168, 1, 121);
 unsigned long lastConnectionTime = 0;
 unsigned int messageCount = 0;
 unsigned long int delayValue;
+unsigned int messageArraySize = 0;
 bool isLoaded = false;
 const unsigned long postingInterval = 10L * 1000L;
 
@@ -45,9 +48,9 @@ void setup() {
 // Prints each char in sentence in morse code
 void createSentence(String stringToConvert) {
   // Gets length of string
-  unsigned int stringLength = stringToConvert.length();
+  signed int stringLength = stringToConvert.length();
   // Loops through string, converting each letter to morse code
-  for (std::size_t i = 0; i < stringLength; i++) {
+  for (signed int i = 0; i < stringLength; i++) {
     Morse.print(stringToConvert.charAt(i));
     Serial.print(stringToConvert.charAt(i));
     delay(1000);
@@ -124,12 +127,16 @@ const char *returnOptionsProp(JsonArray& options, const char *prop) {
 
 // Returns array of messages from JSON.
 const char **returnMessages(JsonArray& messages) {
-  const char **finalMessages = new const char *;
+  const char **finalMessages;
+  messageArraySize = 0;
+  finalMessages = new const char * [sizeof(messages)];
   int order = 0;
-  for (auto message : messages) {
+  // Builds array or messages
+  for (JsonObject& message : messages) {
     order = message["order"].as<int>();
     const char *messageText = message["message"];
     finalMessages[order - 1] = messageText;
+    messageArraySize++;
   }
   return finalMessages;
 }
@@ -144,11 +151,13 @@ void loop() {
     isLoaded = true;
   }
 
+  // Checks to see if read information is complete before parsing
   if (isLoaded == true) {
-
+    // Parses JSON
     DynamicJsonBuffer jsonBuffer;
     jsonPart = extractJSON(readString);
-
+    
+    // Separate controls from message JSON
     JsonObject& jsonObj = jsonBuffer.parseObject(jsonPart);
     JsonArray& controls = jsonObj["controls"];
     JsonArray& messages = jsonObj["messages"];
@@ -156,22 +165,26 @@ void loop() {
     // Sets the delay time.
     delayValue = strtoul(returnOptionsProp(controls, (char *)"messagesDelay"), NULL, 0);
 
-    Serial.print(messageCount);
     const char **allMessages = returnMessages(messages);
-
+    
+    // Runs sentences through Morse Code processor
     createSentence(allMessages[messageCount]);
-    delay(delayValue);
+    Serial.println("\n");
 
-    if (messageCount < sizeof(allMessages)) {
+    // Checks if the current message index has exceeded the total messages array count and either iterates the count or resets it to zero.
+    if (messageCount < messageArraySize - 1) {
       messageCount++;
       //isLoaded = false;
     } else {
       messageCount = 0;
-      //isLoaded = false;
+      isLoaded = false;
     }
   }
 
   if (millis() - lastConnectionTime > postingInterval) {
     httpRequest();
   }
+  
+  // Sets delay value.
+  delay(delayValue);
 }
